@@ -3,9 +3,9 @@
 const game = new Phaser.Game(
     950,                // Game width 
     750,                // Game height
-    Phaser.CANVAS,      // Use HTML5 canvas for rendering (see also http://www.w3schools.com/html/html5_canvas.asp)
+    Phaser.CANVAS,      // Use HTML5 canvas for rendering
     '',                 // No parent 
-    // Set methods for initializing, creating, and updating our game
+    // Set methods for initializing, creating, and updating 
     { preload: preload, create: create, update: update });
 
 function preload() {
@@ -17,12 +17,14 @@ function preload() {
     game.load.image('box', 'images/box.png');
 }
 
-// Declare variables for spaceship, bullets, and meteors
+// Declare variables 
 let tank: Phaser.Sprite;
 let tankBody: Phaser.Physics.Arcade.Body;
 
 let bullets: Phaser.Group;
-let bulletTime = 0;     // Helper storing the time when next bullet can be fired
+let isBulletOut = false;   
+let bulletCount = 3;
+const bulletSpeed = 200;
 
 let walls: Phaser.Group;
 const wallSize = 50;
@@ -39,30 +41,25 @@ let fireKey: Phaser.Key;
 const rotationSpeed = 0.9;
 const moveSpeed = 2.5;
 
-let gameIsOver: boolean = false; // Indicating whether the game is over (one tank destroyed)
+let gameIsOver: boolean = false; 
 
 function create() {
-    // We have a filling background image -> disable clearBeforeRender to make game run faster. 
-    // (see http://phaser.io/docs/2.4.2/PIXI.CanvasRenderer.html#clearBeforeRender for details)
+    // Filling background image -> disable clearBeforeRender to make game run faster
     game.renderer.clearBeforeRender = false;
-
-    //  We want arcade physics.
-    // (see http://phaser.io/docs#arcadephysics for details)
     game.physics.startSystem(Phaser.Physics.ARCADE);
 
-    //  Add a background
+    // Add a background
     game.add.tileSprite(0, 0, game.width, game.height, 'background');
 
     // Create bullets, walls and boxes
-    bullets = createSpriteGroup("bullet");
-    walls = createSpriteGroup("wall");
-    boxes = createSpriteGroup("box");
+    bullets = createSpriteGroup("bullet", 6);
+    walls = createSpriteGroup("wall", 20);
+    boxes = createSpriteGroup("box", 20);
 
     // Add walls to the game
     for (let i = 0; i < game.width; i += wallSize) {
         walls.add(game.add.tileSprite(i, 0, wallSize, wallSize, 'wall'));
         walls.add(game.add.tileSprite(i, game.height - wallSize, wallSize, wallSize, 'wall'));
-
     }
 
     for (let i = wallSize; i < game.height - wallSize; i += wallSize) {
@@ -75,12 +72,12 @@ function create() {
     // Add boxes to the game
     boxes.enableBody = true;
 
-    boxes.add(game.add.tileSprite(200, 200, boxSize, boxSize, 'box'));
-    for (let i = 205; i <= 535; i += boxSize + 5) {
-        boxes.add(game.add.tileSprite(200, i + boxSize, boxSize, boxSize, 'box'));
-        boxes.add(game.add.tileSprite(game.width - 200 - boxSize, i - boxSize, boxSize, boxSize, 'box'));
+    boxes.add(game.add.tileSprite(200, 220, boxSize, boxSize, 'box'));
+    for (let i = 205; i <= 485; i += boxSize + 5) {
+        boxes.add(game.add.tileSprite(200, 20 + i + boxSize, boxSize, boxSize, 'box'));
+        boxes.add(game.add.tileSprite(game.width - 200 - boxSize, i - boxSize - 5, boxSize, boxSize, 'box'));
     }
-    boxes.add(game.add.tileSprite(game.width - 200 - boxSize, 540, boxSize, boxSize, 'box'));
+    boxes.add(game.add.tileSprite(game.width - 200 - boxSize, 480, boxSize, boxSize, 'box'));
 
     for (let i = 345; i <= 510; i += boxSize + 5) {
         boxes.add(game.add.tileSprite(i + boxSize, 150, boxSize, boxSize, 'box'));
@@ -121,10 +118,8 @@ function update() {
     // Movement
     if (leftKey.isDown) {
         tankBody.angle -= rotationSpeed;
-        console.log(tankBody.angle);
     } else if (rightKey.isDown) {
         tankBody.angle += rotationSpeed;
-        console.log(tankBody.angle);
     }
 
     if (forwardKey.isDown) {
@@ -136,12 +131,32 @@ function update() {
         tankBody.y = tankBody.y - moveSpeed / 2 * Math.sin(tankBody.angle * Math.PI / 180);
     }
 
-    // Fire if spacebar is pressed
-    if (fireKey.justDown) {
-        console.log(tank.x + " " + tank.y)
-        fireBullet();
+    // Shooting
+    if (0 < bulletCount) {
+        let bullet;
+
+        // Fire if spacebar is pressed
+        if (fireKey.justDown) {
+            console.log("Pew");
+            bullet = <Phaser.Sprite>bullets.getFirstExists(isBulletOut);
+            // bulletCount--;   // unlimited ammo for testing purposes
+        }
+        
+        if (bullet) {
+            // Only able to shoot if no bullet is out
+            if (!isBulletOut) {
+                bullet.reset(tank.x, tank.y);
+                bullet.angle = tank.angle;
+                isBulletOut = true;
+            }
+
+            bullet.body.x = bullet.body.x + bulletSpeed * Math.cos(bullet.angle * Math.PI / 180);
+            bullet.body.y = bullet.body.y + bulletSpeed * Math.sin(bullet.angle * Math.PI / 180);
+            console.log(bullet.body.x + " " + bullet.body.y);
+        }
     }
-    
+
+    // Collisions
     game.physics.arcade.collide(tank, walls);
     game.physics.arcade.collide(tank, boxes);
     game.physics.arcade.collide(boxes, boxes);
@@ -149,18 +164,18 @@ function update() {
 
     game.physics.arcade.overlap(tank, bullets, gameOver);
     game.physics.arcade.overlap(bullets, bullets,
-        (bullet1: Phaser.Sprite, bullet2: Phaser.Sprite) => { bullet1.kill(); bullet2.kill(); });
-    
-
-    // Kill bullets and meteors that are out of the world's bound
-    // bullets.forEachExists(b => { if ((b.y - b.height / 2) < 0) { b.kill(); } }, this);
-    // meteors.forEachExists(m => { if ((m.y - m.height / 2) > game.height) { m.kill(); } }, this);
+        (bullet1: Phaser.Sprite, bullet2: Phaser.Sprite) => { bullet1.kill(); bullet2.kill(); isBulletOut = false; });
+    game.physics.arcade.overlap(bullets, boxes,
+        (bullet: Phaser.Sprite, box: Phaser.Sprite) => { bullet.kill(); box.kill(); isBulletOut = false; });
+    game.physics.arcade.overlap(bullets, walls,
+        (bullet: Phaser.Sprite, wall: Phaser.Sprite) => { bullet.kill(); isBulletOut = false; });
 
     // At the end, animate
     tank.angle = tankBody.angle;
 }
 
 function gameOver() {
+    // No game over for testing purposes
     // Set game over indicator
     // gameIsOver = true;
 
@@ -174,34 +189,13 @@ function gameOver() {
     // text.anchor.setTo(0.5, 0.5);
 }
 
-function fireBullet() {
-    // Check if it is time to launch a new bullet.
-    if (game.time.now > bulletTime) {
-        // Find the first unused (=unfired) bullet
-        let bullet = <Phaser.Sprite>bullets.getFirstExists(false);
-        if (bullet) {
-            // Display bullet at the current place of the space ship
-            bullet.reset(tank.x, tank.y);
-
-            bullet.angle = tank.angle;
-
-            // Set velocity so that bullet is flying 
-            bullet.body.velocity.x = bullet.body.x + 200 * Math.cos(bullet.angle * Math.PI / 180);
-            bullet.body.velocity.y = bullet.body.y + 200 * Math.sin(bullet.angle * Math.PI / 180);
-
-            // Set next time when a new bullet can be fired
-            bulletTime = game.time.now + 1000;
-        }
-    }
-}
-
-function createSpriteGroup(imageName: string): Phaser.Group {
+function createSpriteGroup(imageName: string, amount: number): Phaser.Group {
     let group = game.add.group();
 
     group.enableBody = true;
     group.physicsBodyType = Phaser.Physics.ARCADE;
 
-    group.createMultiple(20, imageName);
+    group.createMultiple(amount, imageName);
 
     group.setAll('anchor.x', 0.5);
     group.setAll('anchor.y', 0.5);
