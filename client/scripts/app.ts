@@ -1,11 +1,11 @@
 /// <reference path="../../node_modules/phaser/typescript/phaser.d.ts" />
 
 const game = new Phaser.Game(
-    950,                // Game width 
+    950,                // Game width
     750,                // Game height
     Phaser.CANVAS,      // Use HTML5 canvas for rendering
-    '',                 // No parent 
-    // Set methods for initializing, creating, and updating 
+    '',                 // No parent
+    // Set methods for initializing, creating, and updating
     { preload: preload, create: create, update: update });
 
 function preload() {
@@ -17,14 +17,14 @@ function preload() {
     game.load.image('box', 'images/box.png');
 }
 
-// Declare variables 
+// Declare variables
 let tank: Phaser.Sprite;
 let tankBody: Phaser.Physics.Arcade.Body;
 
 let bullets: Phaser.Group;
-let isBulletOut = false;   
+let isBulletOut = false;
 let bulletCount = 3;
-const bulletSpeed = 200;
+const bulletSpeed = 600;
 
 let walls: Phaser.Group;
 const wallSize = 50;
@@ -41,7 +41,7 @@ let fireKey: Phaser.Key;
 const rotationSpeed = 0.9;
 const moveSpeed = 2.5;
 
-let gameIsOver: boolean = false; 
+let gameIsOver: boolean = false;
 
 function create() {
     // Filling background image -> disable clearBeforeRender to make game run faster
@@ -134,25 +134,20 @@ function update() {
     // Shooting
     if (0 < bulletCount) {
         let bullet;
+        let helpBulletX = tankBody.center.x + moveSpeed * Math.cos(tankBody.angle * Math.PI / 180);
+        let helpBulletY = tankBody.center.y + moveSpeed * Math.sin(tankBody.angle * Math.PI / 180);
 
         // Fire if spacebar is pressed
         if (fireKey.justDown) {
-            console.log("Pew");
             bullet = <Phaser.Sprite>bullets.getFirstExists(isBulletOut);
-            // bulletCount--;   // unlimited ammo for testing purposes
-        }
-        
-        if (bullet) {
-            // Only able to shoot if no bullet is out
-            if (!isBulletOut) {
-                bullet.reset(tank.x, tank.y);
-                bullet.angle = tank.angle;
-                isBulletOut = true;
-            }
 
-            bullet.body.x = bullet.body.x + bulletSpeed * Math.cos(bullet.angle * Math.PI / 180);
-            bullet.body.y = bullet.body.y + bulletSpeed * Math.sin(bullet.angle * Math.PI / 180);
-            console.log(bullet.body.x + " " + bullet.body.y);
+            if (!isBulletOut) {
+                bullet.reset(tankBody.center.x, tankBody.center.y);
+                bullet.angle = tankBody.angle;
+                game.physics.arcade.moveToXY(bullet, helpBulletX, helpBulletY, bulletSpeed);
+                isBulletOut = true;
+                // bulletCount--;   // Unlimited ammo for testing purposes
+            }
         }
     }
 
